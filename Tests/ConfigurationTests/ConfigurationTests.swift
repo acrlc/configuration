@@ -43,6 +43,6 @@ final class ConfigurationTests: XCTestCase {
   let spacedOnUppercaseSpacedCategoryDesription =
    Subject.info.categoryDescription(log, for: "Hello World")
 
-  XCTAssertEqual("[ Hello World ]", spacedOnUppercaseCategoryDesription)
+  XCTAssertEqual("[ Hello World ]", spacedOnUppercaseSpacedCategoryDesription)
  }
 }

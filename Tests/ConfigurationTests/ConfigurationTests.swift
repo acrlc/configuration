@@ -1,5 +1,5 @@
-import XCTest
 @testable import Configuration
+import XCTest
 
 final class ConfigurationTests: XCTestCase {
  func testLabels() {
@@ -34,5 +34,15 @@ final class ConfigurationTests: XCTestCase {
    Subject.info.categoryDescription(log, for: "a", with: .task)
 
   XCTAssertEqual("[ A Task ]", singleCharacterCategoryDescription)
+
+  let spacedOnUppercaseCategoryDesription =
+   Subject.info.categoryDescription(log, for: "HelloWorld")
+  
+  XCTAssertEqual("[ Hello World ]", spacedOnUppercaseCategoryDesription)
+  
+  let spacedOnUppercaseSpacedCategoryDesription =
+  Subject.info.categoryDescription(log, for: "Hello World")
+  
+  XCTAssertEqual("[ Hello World ]", spacedOnUppercaseCategoryDesription)
  }
 }

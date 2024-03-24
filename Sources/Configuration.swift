@@ -2,6 +2,7 @@ import Chalk
 import Extensions
 import protocol Core.Infallible
 @_exported import struct Components.Subject
+import struct OSLog.Logger
 
 @dynamicMemberLookup
 public struct Configuration: Identifiable {
@@ -18,6 +19,12 @@ public struct Configuration: Identifiable {
  public init(id name: ID) { self.id = name }
 
  public static var `default` = Configuration()
+ public static func `default`(category: String) -> Self {
+  var `default`: Self = .default
+  `default`.logger = Logger(subsystem: `default`.identifier, category: category)
+  return `default`
+ }
+
  public var id: Name = .defaultValue
  public var name: String { id.formal ?? id.informal ?? id.identifier }
  public var silent = false
@@ -47,6 +54,7 @@ public struct Configuration: Identifiable {
   set { self.id[keyPath: keyPath] = newValue }
  }
 
+ public var logger: Logger?
  @_transparent
  public func callAsFunction(
   _ input: Any...,
@@ -55,14 +63,36 @@ public struct Configuration: Identifiable {
   for subject: Components.Subject? = #fileID,
   with category: Components.Subject? = nil
  ) {
-  #if DEBUG
   let allow = self.filter == nil ? true :
    [subject, category].compactMap { $0 }
    .contains(where: { self.filter!($0) })
   if !self.silent, allow {
    let string =
     input.map(String.init(describing:)).joined(separator: separator)
-
+   logger?.log(level: {
+    switch category {
+    case .some(let category):
+     switch category {
+     case .info: return .info
+     case .error: return .error
+     case .debug: return .debug
+     case .fault: return .fault
+     default: break
+     }
+     fallthrough
+    default:
+     guard let subject else { return .default }
+     switch subject {
+     case .info: return .info
+     case .error: return .error
+     case .debug: return .debug
+     case .fault: return .fault
+     default: return .default
+     }
+    }
+   }(),
+   "\(string)")
+   #if DEBUG
    let fixedSubject = subject?.simplified
    let fixedCategory = category?.simplified
    let isError = [subject, category].contains(.error)
@@ -75,8 +105,8 @@ public struct Configuration: Identifiable {
     "\(string, color: isError ? .red : isSuccess ? .green : .white)"
 
    print(header + .space + message, terminator: terminator)
+   #endif
   }
-  #endif
  }
 }
 

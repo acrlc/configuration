@@ -3,6 +3,7 @@ import enum Chalk.Color
 public extension Components.Subject {
  static let info: Self = "info"
  static let debug: Self = "debug"
+ static let fault: Self = "fault"
  static let database: Self = "database"
  static let function: Self = "function"
  static let task: Self = "task"
@@ -30,7 +31,7 @@ extension Components.Subject {
  var color: Chalk.Color {
   switch self {
   case .info, .database, .function, .detail, .property: return .cyan
-  case .error, .session, .queue, .service: return .red
+  case .error, .session, .queue, .service, .fault: return .red
   case .test, .view, .cache, .leaf, .result, .success: return .green
   case .migration, .failure, .notice, .note: return .magenta
   case .task, .command, .warning: return .yellow
@@ -63,8 +64,12 @@ extension Components.Subject {
    let upper = config.uppercase
    let cap = config.capitalize
    let lower = config.lowercase
-   let cat = category.rawValue.cased(upper: upper, cap: cap, lower: lower)
-   let sub = subcategory.rawValue.cased(upper: upper, cap: cap, lower: lower)
+   let cat =
+    category.rawValue.cased(upper: upper, cap: cap, lower: lower)
+     .spacedOnUppercaseLetters
+   let sub =
+    subcategory.rawValue.cased(upper: upper, cap: cap, lower: lower)
+     .spacedOnUppercaseLetters
    return
     """
     [ \(cat, color: category.color, style: .bold) \
@@ -73,14 +78,18 @@ extension Components.Subject {
   case (let .some(category), nil):
    let cat = category.rawValue.cased(
     upper: config.uppercase, cap: config.capitalize, lower: config.lowercase
-   )
+   ).spacedOnUppercaseLetters
    return "[ \(cat, color: category.color, style: .bold) ]"
   case (nil, .some(let subcategory)):
    let upper = config.uppercase
    let cap = config.capitalize
    let lower = config.lowercase
-   let cat = self.rawValue.cased(upper: upper, cap: cap, lower: lower)
-   let sub = subcategory.rawValue.cased(upper: upper, cap: cap, lower: lower)
+   let cat =
+    self.rawValue.cased(upper: upper, cap: cap, lower: lower)
+     .spacedOnUppercaseLetters
+   let sub =
+    subcategory.rawValue.cased(upper: upper, cap: cap, lower: lower)
+     .spacedOnUppercaseLetters
    return
     """
     [ \(cat, color: self.color, style: .bold) \
@@ -90,7 +99,7 @@ extension Components.Subject {
   default:
    let cat = self.rawValue.cased(
     upper: config.uppercase, cap: config.capitalize, lower: config.lowercase
-   )
+   ).spacedOnUppercaseLetters
    return "[ \(cat, style: .bold) ]"
   }
  }

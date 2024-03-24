@@ -151,7 +151,7 @@ public extension Configuration.Name {
  static var bundleName: String {
   #if os(WASI) || os(Windows)
   "" // fatalError("\(#function) not implemented, must be entered manually")
-  #else
+  #elseif os(macOS)
   Bundle.main.bundleIdentifier ?? {
    let info = ProcessInfo.processInfo
    return info.fullUserName
@@ -159,15 +159,10 @@ public extension Configuration.Name {
     .joined(separator: .period)
     .appending(.period + info.processName)
   }()
+  #else
+  Bundle.main.bundleIdentifier ?? ProcessInfo.processInfo.processName
   #endif
  }
-
- #if os(iOS)
- @usableFromInline
- static var bundleName: String {
-  Bundle.main.bundleIdentifier ?? ProcessInfo.processInfo.processName
- }
- #endif
 }
 #else
 import class Foundation.Bundle

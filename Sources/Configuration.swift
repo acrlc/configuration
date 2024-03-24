@@ -1,7 +1,7 @@
 import Chalk
-import Extensions
-import protocol Core.Infallible
 @_exported import struct Components.Subject
+import protocol Core.Infallible
+import Extensions
 import struct OSLog.Logger
 
 @dynamicMemberLookup
@@ -63,42 +63,48 @@ public struct Configuration: Identifiable {
   for subject: Components.Subject? = #fileID,
   with category: Components.Subject? = nil
  ) {
-  let allow = self.filter == nil ? true :
-   [subject, category].compactMap { $0 }
-   .contains(where: { self.filter!($0) })
+  let allow = self.filter == nil
+   ? true
+   : [subject, category].compactMap { $0 }
+    .contains(where: { self.filter!($0) })
   if !self.silent, allow {
    let string =
     input.map(String.init(describing:)).joined(separator: separator)
-   logger?.log(level: {
-    switch category {
-    case .some(let category):
+   logger?.log(
+    level: {
      switch category {
-     case .info: return .info
-     case .error: return .error
-     case .debug: return .debug
-     case .fault: return .fault
-     default: break
+     case .some(let category):
+      switch category {
+      case .info: return .info
+      case .error: return .error
+      case .debug: return .debug
+      case .fault: return .fault
+      default: break
+      }
+      fallthrough
+     default:
+      guard let subject else {
+       return .default
+      }
+      switch subject {
+      case .info: return .info
+      case .error: return .error
+      case .debug: return .debug
+      case .fault: return .fault
+      default: return .default
+      }
      }
-     fallthrough
-    default:
-     guard let subject else { return .default }
-     switch subject {
-     case .info: return .info
-     case .error: return .error
-     case .debug: return .debug
-     case .fault: return .fault
-     default: return .default
-     }
-    }
-   }(),
-   "\(string)")
+    }(),
+    "\(string)"
+   )
    #if DEBUG
    let fixedSubject = subject?.simplified
    let fixedCategory = category?.simplified
    let isError = [subject, category].contains(.error)
    let isSuccess = [subject, category].contains(.success)
-   let header = subject == nil ? .empty :
-    subject!.categoryDescription(
+   let header = subject == nil
+    ? .empty
+    : subject!.categoryDescription(
      self, for: fixedSubject, with: fixedCategory
     )
    let message =
@@ -184,14 +190,15 @@ public extension Configuration {
  var appName: String? { Name.appName }
  var bundleName: String { Name.bundleName }
 
- @frozen struct Name: Infallible, Hashable {
+ @frozen
+ struct Name: Infallible, Hashable {
   public static var defaultValue = Self()
   init(
    id: String? = nil,
    formal: String? = nil,
    informal: String? = nil
   ) {
-   self.identifier = id ?? Self.bundleName
+   identifier = id ?? Self.bundleName
    self.formal = formal ?? Self.appName
    self.informal =
     informal ?? formal?.lowercased() ?? Self.appName?.lowercased()

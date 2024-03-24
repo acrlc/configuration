@@ -30,12 +30,12 @@ public extension Components.Subject {
 extension Components.Subject {
  var color: Chalk.Color {
   switch self {
-  case .info, .database, .function, .detail, .property: return .cyan
-  case .error, .session, .queue, .service, .fault: return .red
-  case .test, .view, .cache, .leaf, .result, .success: return .green
-  case .migration, .failure, .notice, .note: return .magenta
-  case .task, .command, .warning: return .yellow
-  default: return .white
+  case .info, .database, .function, .detail, .property: .cyan
+  case .error, .session, .queue, .service, .fault: .red
+  case .test, .view, .cache, .leaf, .result, .success: .green
+  case .migration, .failure, .notice, .note: .magenta
+  case .task, .command, .warning: .yellow
+  default: .white
   }
  }
 
@@ -44,11 +44,17 @@ extension Components.Subject {
   let string = rawValue
   if let last = string.split(separator: "/").last {
    return Self(
-    stringLiteral: String(last.split(separator: .period).first.unsafelyUnwrapped)
+    stringLiteral: String(
+     last.split(separator: .period).first
+      .unsafelyUnwrapped
+    )
    )
   } else {
    return Self(
-    stringLiteral: String(string.split(separator: .period).first.unsafelyUnwrapped)
+    stringLiteral: String(
+     string.split(separator: .period).first
+      .unsafelyUnwrapped
+    )
    )
   }
  }
@@ -85,19 +91,19 @@ extension Components.Subject {
    let cap = config.capitalize
    let lower = config.lowercase
    let cat =
-    self.rawValue.cased(upper: upper, cap: cap, lower: lower)
+    rawValue.cased(upper: upper, cap: cap, lower: lower)
      .spacedOnUppercaseLetters
    let sub =
     subcategory.rawValue.cased(upper: upper, cap: cap, lower: lower)
      .spacedOnUppercaseLetters
    return
     """
-    [ \(cat, color: self.color, style: .bold) \
+    [ \(cat, color: color, style: .bold) \
     \(sub, color: subcategory.color, style: .bold) ]
     """
   // TODO: Cover prefix / suffix
   default:
-   let cat = self.rawValue.cased(
+   let cat = rawValue.cased(
     upper: config.uppercase, cap: config.capitalize, lower: config.lowercase
    ).spacedOnUppercaseLetters
    return "[ \(cat, style: .bold) ]"

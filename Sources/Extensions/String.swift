@@ -28,7 +28,12 @@ extension String {
   while
    let index = str[offset...].firstIndex(where: { $0.isUppercase }) {
    if str[offset].isLowercase {
-    if let nextIndex = str.index(index, offsetBy: -1, limitedBy: str.index(before: str.endIndex)) {
+    if
+     let nextIndex = str.index(
+      index,
+      offsetBy: -1,
+      limitedBy: str.index(before: str.endIndex)
+     ) {
      if !str[nextIndex].isWhitespace {
       str.insert(.space, at: index)
      }

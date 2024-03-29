@@ -97,7 +97,6 @@ public struct Configuration: Identifiable {
     }(),
     "\(string)"
    )
-   #if DEBUG
    let fixedSubject = subject?.simplified
    let fixedCategory = category?.simplified
    let isError = [subject, category].contains(.error)
@@ -111,7 +110,6 @@ public struct Configuration: Identifiable {
     "\(string, color: isError ? .red : isSuccess ? .green : .white)"
 
    print(header + .space + message, terminator: terminator)
-   #endif
   }
  }
 }

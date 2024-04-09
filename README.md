@@ -12,5 +12,5 @@ log("starting process", for: .info)
 log("ending process", with: .info)
 // prints - [ Filename Info ] ending process
 ```
-### Acknowledgments
+### Open Source Credits
 [Chalk](https://github.com/mxcl/chalk) is used to color terminal output

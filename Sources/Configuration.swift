@@ -3,6 +3,7 @@ import Chalk
 import protocol Core.Infallible
 import Extensions
 import struct OSLog.Logger
+import struct OSLog.OSLogType
 
 @dynamicMemberLookup
 public struct Configuration: Identifiable {
@@ -19,14 +20,24 @@ public struct Configuration: Identifiable {
  public init(id name: ID) { self.id = name }
 
  public static var `default` = Configuration()
- public static func `default`(category: String) -> Self {
+ public static func `default`(
+  subsystem: String? = nil,
+  category: String
+ ) -> Self {
   var `default`: Self = .default
-  `default`.logger = Logger(subsystem: `default`.identifier, category: category)
+  `default`.logger = Logger(
+   subsystem: subsystem ?? `default`.identifier!, category: category
+  )
   return `default`
  }
 
  public var id: Name = .defaultValue
- public var name: String { id.formal ?? id.informal ?? id.identifier }
+ #if os(iOS) || os(macOS)
+ public var name: String { id.formal ?? id.informal ?? id.identifier! }
+ #else
+ public var name: String? { id.formal ?? id.informal ?? id.identifier }
+ #endif
+
  public var silent = false
  public var labelCase: LabelCase = .capital
 
@@ -67,11 +78,12 @@ public struct Configuration: Identifiable {
    ? true
    : [subject, category].compactMap { $0 }
     .contains(where: { self.filter!($0) })
-  if !self.silent, allow {
-   let string =
+  if allow {
+   lazy var string =
     input.map(String.init(describing:)).joined(separator: separator)
-   logger?.log(
-    level: {
+
+   if let logger {
+    if let level: OSLogType = {
      switch category {
      case .some(let category):
       switch category {
@@ -91,25 +103,28 @@ public struct Configuration: Identifiable {
       case .error: return .error
       case .debug: return .debug
       case .fault: return .fault
-      default: return .default
+      default: return nil
       }
      }
-    }(),
-    "\(string)"
-   )
-   let fixedSubject = subject?.simplified
-   let fixedCategory = category?.simplified
-   let isError = [subject, category].contains(.error)
-   let isSuccess = [subject, category].contains(.success)
-   let header = subject == nil
-    ? .empty
-    : subject!.categoryDescription(
-     self, for: fixedSubject, with: fixedCategory
-    )
-   let message =
-    "\(string, color: isError ? .red : isSuccess ? .green : .white)"
+    }() {
+     logger.log(level: level, "\(string)")
+    }
+   }
+   if !self.silent {
+    let fixedSubject = subject?.simplified
+    let fixedCategory = category?.simplified
+    let isError = [subject, category].contains(.error)
+    let isSuccess = [subject, category].contains(.success)
+    let header = subject == nil
+     ? .empty
+     : subject!.categoryDescription(
+      self, for: fixedSubject, with: fixedCategory
+     )
+    let message =
+    "\(string, color: isError ? .red : isSuccess ? .green : .default)"
 
-   print(header + .space + message, terminator: terminator)
+    print(header + .space + message, terminator: terminator)
+   }
   }
  }
 }
@@ -139,26 +154,18 @@ import class Foundation.ProcessInfo
 public extension Configuration.Name {
  static var appName: String? {
   #if os(WASI) || os(Windows) || os(Linux)
-  nil // fatalError("\(#function) not implemented, must be entered manually")
+  nil
   #else
   Bundle.main.infoDictionary?[kCFBundleNameKey as String] as? String ??
    Bundle.main.infoDictionary?[kCFBundleExecutableKey as String] as? String
   #endif
  }
 
- static var bundleName: String {
+ static var bundleName: String? {
   #if os(WASI) || os(Windows)
-  "" // fatalError("\(#function) not implemented, must be entered manually")
-  #elseif os(macOS)
-  Bundle.main.bundleIdentifier ?? {
-   let info = ProcessInfo.processInfo
-   return info.fullUserName
-    .split(separator: .space).map { $0.lowercased() }
-    .joined(separator: .period)
-    .appending(.period + info.processName)
-  }()
-  #else
-  Bundle.main.bundleIdentifier ?? ProcessInfo.processInfo.processName
+  nil
+  #elseif os(macOS) || os(iOS)
+  Bundle.main.bundleIdentifier
   #endif
  }
 }
@@ -167,21 +174,13 @@ import class Foundation.Bundle
 import class Foundation.ProcessInfo
 extension Configuration.Name {
  static var appName: String { ProcessInfo.processInfo.processName }
- static var bundleName: String {
-  Bundle.main.bundleIdentifier ?? {
-   let info = ProcessInfo.processInfo
-   return info.fullUserName
-    .split(separator: .space).map { $0.lowercased() }
-    .joined(separator: .period)
-    .appending(.period + info.processName)
-  }()
- }
+ static var bundleName: String? { Bundle.main.bundleIdentifier }
 }
 #endif
 
 public extension Configuration {
  var appName: String? { Name.appName }
- var bundleName: String { Name.bundleName }
+ var bundleName: String? { Name.bundleName }
 
  @frozen
  struct Name: Infallible, Hashable {
@@ -197,7 +196,7 @@ public extension Configuration {
     informal ?? formal?.lowercased() ?? Self.appName?.lowercased()
   }
 
-  public var identifier: String = Self.bundleName
+  public var identifier: String? = Self.bundleName
   public var formal: String? = Self.appName
   public var informal: String? = Self.appName?.lowercased()
  }

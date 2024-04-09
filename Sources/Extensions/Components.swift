@@ -35,7 +35,7 @@ extension Components.Subject {
   case .test, .view, .cache, .leaf, .result, .success: .green
   case .migration, .failure, .notice, .note: .magenta
   case .task, .command, .warning: .yellow
-  default: .white
+  default: .default
   }
  }
 
@@ -110,3 +110,4 @@ extension Components.Subject {
   }
  }
 }
+

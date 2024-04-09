@@ -1,4 +1,4 @@
-// swift-tools-version:5.4
+// swift-tools-version:5.5
 import PackageDescription
 
 let package = Package(
@@ -9,7 +9,10 @@ let package = Package(
  ],
  dependencies: [
   .package(url: "https://github.com/acrlc/core.git", from: "0.1.0"),
-  .package(url: "https://github.com/mxcl/Chalk.git", from: "0.5.0")
+  .package(
+   url: "https://github.com/acrlc/Chalk.git",
+   branch: "add-default-color"
+  )
  ],
  targets: [
   .target(

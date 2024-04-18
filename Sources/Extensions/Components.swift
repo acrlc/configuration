@@ -11,6 +11,8 @@ public extension Components.Subject {
  static let property: Self = "property"
  static let error: Self = "error"
  static let warning: Self = "warning"
+ static let trace: Self = "trace"
+ static let critical: Self = "critical"
  static let session: Self = "session"
  static let queue: Self = "queue"
  static let service: Self = "service"

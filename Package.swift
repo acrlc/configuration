@@ -9,6 +9,7 @@ let package = Package(
  ],
  dependencies: [
   .package(url: "https://github.com/acrlc/core.git", from: "0.1.0"),
+  .package(url: "https://github.com/apple/swift-log.git", from: "1.5.4"),
   .package(
    url: "https://github.com/acrlc/Chalk.git",
    branch: "add-default-color"
@@ -20,6 +21,7 @@ let package = Package(
    dependencies: [
     .product(name: "Extensions", package: "core"),
     .product(name: "Components", package: "core"),
+    .product(name: "Logging", package: "swift-log"),
     "Chalk"
    ],
    path: "Sources"

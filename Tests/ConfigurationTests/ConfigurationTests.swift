@@ -45,4 +45,9 @@ final class ConfigurationTests: XCTestCase {
 
   XCTAssertEqual("[ Hello World ]", spacedOnUppercaseSpacedCategoryDesription)
  }
+ func testLogging() {
+  let log: Configuration = .log(label: "com.configuration.tests")
+  log("This is an error!", with: .error)
+  log("Some information.")
+ }
 }

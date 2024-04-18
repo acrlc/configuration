@@ -2,8 +2,7 @@ import Chalk
 @_exported import struct Components.Subject
 import protocol Core.Infallible
 import Extensions
-import struct OSLog.Logger
-import struct OSLog.OSLogType
+import Logging
 
 @dynamicMemberLookup
 public struct Configuration: Identifiable {
@@ -20,14 +19,31 @@ public struct Configuration: Identifiable {
  public init(id name: ID) { self.id = name }
 
  public static var `default` = Configuration()
- public static func `default`(
-  subsystem: String? = nil,
-  category: String
+ public static func log(
+  label: String? = nil,
+  category: String? = nil,
+  level: Logger.Level? = nil
  ) -> Self {
+  let label = label ?? `default`.identifier
+  assert(label?.wrapped != nil, "label for logger cannot be nil or empty")
   var `default`: Self = .default
-  `default`.logger = Logger(
-   subsystem: subsystem ?? `default`.identifier!, category: category
-  )
+
+  if let category {
+   `default`.logger = Logger(
+    label: label!,
+    metadataProvider:
+    Logger.MetadataProvider {
+     ["category": .string(category)]
+    }
+   )
+  } else {
+   `default`.logger = Logger(label: label!)
+  }
+
+  if let level {
+   `default`.logger?.logLevel = level
+  }
+
   return `default`
  }
 
@@ -83,26 +99,30 @@ public struct Configuration: Identifiable {
     input.map(String.init(describing:)).joined(separator: separator)
 
    if let logger {
-    if let level: OSLogType = {
+    if let level: Logger.Level = {
      switch category {
      case .some(let category):
       switch category {
       case .info: return .info
       case .error: return .error
+      case .warning: return .warning
       case .debug: return .debug
-      case .fault: return .fault
+      case .critical: return .critical
+      case .trace: return .trace
       default: break
       }
       fallthrough
      default:
       guard let subject else {
-       return .default
+       return .info
       }
       switch subject {
       case .info: return .info
       case .error: return .error
+      case .warning: return .warning
       case .debug: return .debug
-      case .fault: return .fault
+      case .critical: return .critical
+      case .trace: return .trace
       default: return nil
       }
      }
@@ -121,7 +141,7 @@ public struct Configuration: Identifiable {
       self, for: fixedSubject, with: fixedCategory
      )
     let message =
-    "\(string, color: isError ? .red : isSuccess ? .green : .default)"
+     "\(string, color: isError ? .red : isSuccess ? .green : .default)"
 
     print(header + .space + message, terminator: terminator)
    }
@@ -162,7 +182,7 @@ public extension Configuration.Name {
  }
 
  static var bundleName: String? {
-  #if os(WASI) || os(Windows)
+  #if os(WASI) || os(Windows) || os(Linux)
   nil
   #elseif os(macOS) || os(iOS)
   Bundle.main.bundleIdentifier

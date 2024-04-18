@@ -8,7 +8,7 @@ let package = Package(
   .library(name: "Configuration", targets: ["Configuration"])
  ],
  dependencies: [
-  .package(url: "https://github.com/acrlc/core.git", from: "0.1.0"),
+  .package(url: "https://github.com/acrlc/core.git", branch: "main"),
   .package(url: "https://github.com/apple/swift-log.git", from: "1.5.4"),
   .package(
    url: "https://github.com/acrlc/Chalk.git",

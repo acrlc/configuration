@@ -176,7 +176,8 @@ public extension Configuration.Name {
   #if os(WASI) || os(Windows) || os(Linux)
   nil
   #else
-  Bundle.main.infoDictionary?[kCFBundleNameKey as String] as? String ??
+  Bundle.main.infoDictionary?["CFBundleDisplayName"] as? String ??
+   Bundle.main.infoDictionary?[kCFBundleNameKey as String] as? String ??
    Bundle.main.infoDictionary?[kCFBundleExecutableKey as String] as? String
   #endif
  }

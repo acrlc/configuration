@@ -1,4 +1,5 @@
 import enum Chalk.Color
+import Extensions
 
 public extension Components.Subject {
  static let info: Self = "info"
@@ -74,10 +75,10 @@ extension Components.Subject {
    let lower = config.lowercase
    let cat =
     category.rawValue.cased(upper: upper, cap: cap, lower: lower)
-     .spacedOnUppercaseLetters
+     .normalizedForCasing
    let sub =
     subcategory.rawValue.cased(upper: upper, cap: cap, lower: lower)
-     .spacedOnUppercaseLetters
+     .normalizedForCasing
    return
     """
     [ \(cat, color: category.color, style: .bold) \
@@ -86,7 +87,7 @@ extension Components.Subject {
   case (let .some(category), nil):
    let cat = category.rawValue.cased(
     upper: config.uppercase, cap: config.capitalize, lower: config.lowercase
-   ).spacedOnUppercaseLetters
+   ).normalizedForCasing
    return "[ \(cat, color: category.color, style: .bold) ]"
   case (nil, .some(let subcategory)):
    let upper = config.uppercase
@@ -94,10 +95,10 @@ extension Components.Subject {
    let lower = config.lowercase
    let cat =
     rawValue.cased(upper: upper, cap: cap, lower: lower)
-     .spacedOnUppercaseLetters
+     .normalizedForCasing
    let sub =
     subcategory.rawValue.cased(upper: upper, cap: cap, lower: lower)
-     .spacedOnUppercaseLetters
+     .normalizedForCasing
    return
     """
     [ \(cat, color: color, style: .bold) \
@@ -107,7 +108,7 @@ extension Components.Subject {
   default:
    let cat = rawValue.cased(
     upper: config.uppercase, cap: config.capitalize, lower: config.lowercase
-   ).spacedOnUppercaseLetters
+   ).normalizedForCasing
    return "[ \(cat, style: .bold) ]"
   }
  }

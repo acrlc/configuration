@@ -19,25 +19,38 @@ public struct Configuration: Identifiable {
  public init(id name: ID) { self.id = name }
 
  public static var `default` = Configuration()
+ public static func `default`(
+  id: String? = nil, informal: String? = nil, formal: String? = #fileID
+ ) -> Self {
+  var copy: Self = Configuration()
+  copy.id = Name(
+   id: id,
+   formal: formal,
+   informal: informal ?? formal?.lowercased()
+  )
+  return copy
+ }
+
  public static func log(
   label: String? = nil,
   category: String? = nil,
-  level: Logger.Level? = nil
+  level: Logger.Level? = nil,
+  _ fileID: String = #fileID
  ) -> Self {
-  let label = label ?? `default`.identifier
-  assert(label?.wrapped != nil, "label for logger cannot be nil or empty")
+  let label = label ?? `default`.identifier?.wrapped ?? fileID
+  assert(label.wrapped != nil, "label for logger cannot be nil or empty")
   var `default`: Self = .default
 
   if let category {
    `default`.logger = Logger(
-    label: label!,
+    label: label,
     metadataProvider:
     Logger.MetadataProvider {
      ["category": .string(category)]
     }
    )
   } else {
-   `default`.logger = Logger(label: label!)
+   `default`.logger = Logger(label: label)
   }
 
   if let level {
@@ -48,11 +61,17 @@ public struct Configuration: Identifiable {
  }
 
  public var id: Name = .defaultValue
- #if os(iOS) || os(macOS)
- public var name: String { id.formal ?? id.informal ?? id.identifier! }
- #else
- public var name: String? { id.formal ?? id.informal ?? id.identifier }
- #endif
+ /// The resolved name of the configuration.
+ /// - Warning: throws fatal error if
+ public var name: String {
+  if let name = id.formal ?? id.informal {
+   name
+  } else if let id = id.identifier {
+   id
+  } else {
+   fatalError("name couldn't be resolved, please set the property `id`")
+  }
+ }
 
  public var silent = false
  public var labelCase: LabelCase = .capital
@@ -203,10 +222,9 @@ public extension Configuration {
  var appName: String? { Name.appName }
  var bundleName: String? { Name.bundleName }
 
- @frozen
  struct Name: Infallible, Hashable {
   public static var defaultValue = Self()
-  init(
+  public init(
    id: String? = nil,
    formal: String? = nil,
    informal: String? = nil

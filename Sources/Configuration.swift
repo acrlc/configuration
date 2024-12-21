@@ -2,6 +2,17 @@ import Chalk
 @_exported import struct Components.Subject
 import protocol Core.Infallible
 import Extensions
+import class Foundation.FileHandle
+import class Foundation.FileManager
+import struct Foundation.Calendar
+import struct Foundation.Date
+import struct Foundation.Data
+#if canImport(os.log)
+import func os.os_log
+import class os.OSLog
+import struct os.OSLogMessage
+import struct os.OSLogType
+#endif
 import Logging
 
 @dynamicMemberLookup
@@ -28,36 +39,184 @@ public struct Configuration: Identifiable {
    formal: formal,
    informal: informal ?? formal?.lowercased()
   )
+  `default` = copy
   return copy
+ }
+
+ final class LogHandler: Logging.LogHandler {
+  init(id: Configuration.ID) {
+   self.id = id
+  }
+
+  subscript(metadataKey key: String) -> Logging.Logger.Metadata.Value? {
+   get { metadata[key] }
+   set { metadata[key] = newValue }
+  }
+
+  var id: Configuration.ID
+  var metadata: Logging.Logger.Metadata = .empty
+  var logLevel: Logging.Logger.Level = .trace
+
+  #if canImport(os.log)
+  lazy var osLog = OSLog(
+   subsystem: metadata["subsystem"]?.description ?? .empty,
+   category: metadata["category"]?.description ?? .empty
+  )
+
+  func osLogType(_ logLevel: Logger.Level) -> OSLogType {
+   switch logLevel {
+   case .trace: .default
+   case .debug: .debug
+   case .info, .notice, .warning: .info
+   case .error: .error
+   case .critical: .fault
+   }
+  }
+  #endif
+
+  #if os(macOS)
+  struct OutputStream: TextOutputStream {
+   unowned let handler: LogHandler
+   var id: Configuration.ID { handler.id }
+
+   var basePath: String {
+    // TODO: warn about unique identifier requirement here
+    // and create platform specific paths
+    "Library/Logs/\(id.identifier ?? id.formal ?? id.informal!).log"
+   }
+
+   let fm = FileManager.default
+   var outputPath: String {
+    fm.homeDirectoryForCurrentUser.appendingPathComponent(basePath).path
+   }
+
+   func write(_ message: String) {
+    do {
+     if !fm.fileExists(atPath: outputPath) {
+      try fm.createFile(atPath: outputPath, contents: Data())
+       .throwing(reason: "unable to create log file for path: \(outputPath)")
+     }
+     let handle = try FileHandle(forWritingAtPath: outputPath).throwing(
+      reason: "unable to initialize file handle for path: \(outputPath)"
+     )
+     handle.seekToEndOfFile()
+     handle.write(message.data(using: .utf8)!)
+     handle.closeFile()
+    } catch {
+     return handler.log(
+      level: .critical,
+      message: "\(error.message)",
+      metadata: nil,
+      source: id.formal ?? id.identifier!,
+      file: #fileID, function: #function, line: #line
+     )
+    }
+   }
+  }
+  #endif
+
+  #if os(macOS)
+  lazy var outputStream = OutputStream(handler: self)
+  #endif
+
+  private lazy var calendar = Calendar(identifier: .gregorian)
+
+  enum Month: Int {
+   case
+    january = 1,
+    february,
+    march,
+    april,
+    may,
+    june,
+    july,
+    august,
+    september,
+    october,
+    november,
+    december
+
+   var name: String { "\(self)" }
+   var abbreviation: Substring { name.prefix(3) }
+  }
+
+  func log(
+   level: Logger.Level, message: Logger.Message, metadata _: Logger.Metadata?,
+   source _: String,
+   file _: String,
+   function _: String,
+   line _: UInt
+  ) {
+   #if canImport(os.log)
+   os_log(osLogType(level), log: osLog, "\(message.description, privacy: .public)")
+   #if os(macOS)
+   if level >= .error {
+    let header: String = {
+     let comp = calendar.dateComponents(
+      [.month, .day, .hour, .minute, .second], from: Date()
+     )
+     let month = Month(rawValue: comp.month!)!.abbreviation.capitalized
+     return "\(month) \(comp.day!) \(comp.hour!):\(comp.minute!):\(comp.second!):"
+    }()
+    print(header, message.description, terminator: "\n", to: &outputStream)
+   }
+   #endif
+   #else
+   #warning("System logging is not currently implemented on this platform")
+   #endif
+  }
  }
 
  public static func log(
   label: String? = nil,
+  subsystem: String? = nil,
   category: String? = nil,
   level: Logger.Level? = nil,
-  _ fileID: String = #fileID
+  filePath _: String = #file,
+  fileID: String = #fileID
  ) -> Self {
   let label = label ?? `default`.identifier?.wrapped ?? fileID
   assert(label.wrapped != nil, "label for logger cannot be nil or empty")
   var `default`: Self = .default
+  let logHandler = Configuration.LogHandler(id: `default`.id)
+  var logger = Logger(
+   label: label,
+   metadataProvider: Logger.MetadataProvider { logHandler.metadata }
+  )
 
+  if let level { logHandler.logLevel = level }
+  if let subsystem {
+   logHandler[metadataKey: "subsystem"] = .string(subsystem)
+   lazy var subsystem = subsystem.casing(.camel)
+   logHandler.id.identifier?.append(".\(subsystem)")
+   logHandler.id.informal?.append(".\(subsystem)")
+  }
   if let category {
-   `default`.logger = Logger(
-    label: label,
-    metadataProvider:
-    Logger.MetadataProvider {
-     ["category": .string(category)]
-    }
-   )
-  } else {
-   `default`.logger = Logger(label: label)
+   logHandler[metadataKey: "category"] = .string(category)
+   lazy var category = category.casing(.camel)
+   logHandler.id.identifier?.append(".\(category)")
+   logHandler.id.informal?.append(".\(category)")
   }
 
-  if let level {
-   `default`.logger?.logLevel = level
-  }
+  logger.handler = logHandler
+  `default`.logger = logger
 
   return `default`
+ }
+
+ public func log(
+  label: String? = nil,
+  subsystem: String? = nil,
+  category: String? = nil,
+  level: Logger.Level? = nil,
+  filePath: String = #file,
+  fileID: String = #fileID
+ ) -> Self {
+  Self.log(
+   label: label, subsystem: subsystem, category: category, level: level,
+   filePath: filePath,
+   fileID: fileID
+  )
  }
 
  public var id: Name = .defaultValue
@@ -101,68 +260,79 @@ public struct Configuration: Identifiable {
  }
 
  public var logger: Logger?
+
  @_transparent
  public func callAsFunction(
   _ input: Any...,
   separator: String = " ",
   terminator: String = "\n",
   for subject: Components.Subject? = #fileID,
-  with category: Components.Subject? = nil
+  with category: Components.Subject? = nil,
+  source: @autoclosure () -> String? = nil,
+  fileID: String = #fileID, filePath _: String = #file, function: String = #function, line: UInt = #line
  ) {
   let allow = self.filter == nil
    ? true
    : [subject, category].compactMap { $0 }
-    .contains(where: { self.filter!($0) })
+   .contains(where: { self.filter!($0) })
+
   if allow {
    lazy var string =
     input.map(String.init(describing:)).joined(separator: separator)
+   lazy var fixedSubject = subject?.simplified
+   lazy var fixedCategory = category?.simplified
+   lazy var isError = [subject, category].contains(.error)
+   lazy var isSuccess = [subject, category].contains(.success)
+   lazy var header = subject == nil
+    ? .empty
+    : subject!.categoryDescription(
+     self, for: fixedSubject, with: fixedCategory
+    )
+   lazy var message =
+    "\(string, color: isError ? .red : isSuccess ? .green : .default)"
+
+   lazy var output = header + .space + message
 
    if let logger {
-    if let level: Logger.Level = {
+    let level: Logger.Level? = {
      switch category {
-     case .some(let category):
+     case let .some(category):
       switch category {
-      case .info: return .info
       case .error: return .error
       case .warning: return .warning
       case .debug: return .debug
-      case .critical: return .critical
+      case .notice: return .notice
+      case .critical, .fault: return .critical
       case .trace: return .trace
       default: break
       }
       fallthrough
      default:
-      guard let subject else {
-       return .info
-      }
       switch subject {
-      case .info: return .info
       case .error: return .error
       case .warning: return .warning
       case .debug: return .debug
-      case .critical: return .critical
+      case .notice: return .notice
+      case .critical, .fault: return .critical
       case .trace: return .trace
       default: return nil
       }
      }
-    }() {
-     logger.log(level: level, "\(string)")
-    }
+    }()
+    logger.log(
+     level: level ?? logger.logLevel, "\(output)",
+     source: source(),
+     file: fileID, function: function, line: line
+    )
    }
    if !self.silent {
-    let fixedSubject = subject?.simplified
-    let fixedCategory = category?.simplified
-    let isError = [subject, category].contains(.error)
-    let isSuccess = [subject, category].contains(.success)
-    let header = subject == nil
-     ? .empty
-     : subject!.categoryDescription(
-      self, for: fixedSubject, with: fixedCategory
-     )
-    let message =
-     "\(string, color: isError ? .red : isSuccess ? .green : .default)"
-
-    print(header + .space + message, terminator: terminator)
+    #if canImport(os.log)
+    if logger == nil {
+     print(output, terminator: terminator)
+    }
+    #else
+    print(output, terminator: terminator)
+    #endif
    }
   }
  }
@@ -190,6 +360,7 @@ public extension Configuration {
 import CoreFoundation
 import class Foundation.Bundle
 import class Foundation.ProcessInfo
+
 public extension Configuration.Name {
  static var appName: String? {
   #if os(WASI) || os(Windows) || os(Linux)
@@ -212,6 +383,7 @@ public extension Configuration.Name {
 #else
 import class Foundation.Bundle
 import class Foundation.ProcessInfo
+
 extension Configuration.Name {
  static var appName: String { ProcessInfo.processInfo.processName }
  static var bundleName: String? { Bundle.main.bundleIdentifier }
